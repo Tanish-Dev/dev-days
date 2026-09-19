@@ -4,11 +4,13 @@ import GameCard from '../components/GameCard.astro';
 import PageHero from '../components/PageHero.astro';
 import EmptyState from '../components/EmptyState.astro';
 import { getDatabase } from '../lib/db';
-import { getAllGames } from '../lib/games';
+import { getAllGames, getCatalogSummary } from '../lib/games';
 
 export const prerender = true;
 
-const games = await getAllGames(getDatabase());
+const db = getDatabase();
+const games = await getAllGames(db);
+const catalogSummary = await getCatalogSummary(db);
 const categoryOptions = [...new Map(
   games
     .filter((game) => game.category !== null)
@@ -27,6 +29,28 @@ const publisherOptions = [...new Map(
       title="Welcome to Tailspin Toys"
       subtitle="Find your next game! And maybe even back one! Explore our collection!"
     />
+
+    <section
+      class="mb-8 grid gap-4 sm:grid-cols-2"
+      aria-labelledby="catalog-summary-heading"
+      data-testid="catalog-summary"
+    >
+      <h2 id="catalog-summary-heading" class="sr-only">Catalog summary</h2>
+      <div class="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg">
+        <p class="text-sm font-medium text-slate-300">Games in the catalog</p>
+        <p class="mt-2 text-3xl font-semibold text-slate-100" data-testid="catalog-game-count">
+          {catalogSummary.totalGames}
+        </p>
+      </div>
+      <div class="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg">
+        <p class="text-sm font-medium text-slate-300">Average star rating</p>
+        <p class="mt-2 text-3xl font-semibold text-slate-100" data-testid="catalog-average-rating">
+          {catalogSummary.averageStarRating === null
+            ? 'No ratings yet'
+            : `${catalogSummary.averageStarRating.toFixed(1)} / 5`}
+        </p>
+      </div>
+    </section>
 
     <div>
       <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:justify-between">
