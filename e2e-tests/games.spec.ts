@@ -49,8 +49,26 @@ test.describe('Game Listing and Navigation', () => {
 
     await test.step('Clear filters', async () => {
       await page.getByTestId('reset-filters').click();
-      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(initialCount);
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(6);
       await expect(page.getByTestId('filter-result-count')).toHaveText(new RegExp(`Showing ${initialCount} games`));
+    });
+  });
+
+  test('should paginate the game list', async ({ page }) => {
+    await page.goto('/');
+
+    await test.step('Verify the first page and pagination controls', async () => {
+      await expect(page.getByTestId('pagination-status')).toHaveText('Page 1 of 4');
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(6);
+      await expect(page.getByTestId('pagination-previous')).toBeDisabled();
+      await expect(page.getByTestId('pagination-next')).toBeEnabled();
+    });
+
+    await test.step('Navigate to the next page', async () => {
+      await page.getByTestId('pagination-next').click();
+      await expect(page.getByTestId('pagination-status')).toHaveText('Page 2 of 4');
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(6);
+      await expect(page.getByTestId('pagination-previous')).toBeEnabled();
     });
   });
 

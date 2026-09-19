@@ -6,7 +6,9 @@ import type { Database } from './db';
 import {
     getAllGames,
     getAllGameIds,
+    getGameCount,
     getGameById,
+    getPaginatedGames,
 } from './games';
 
 async function seedGames(db: Database, count: number): Promise<void> {
@@ -51,6 +53,35 @@ describe('games data-access helpers', () => {
         const ids = await getAllGameIds(db);
         const all = await getAllGames(db);
         expect(ids).toEqual(all.map((g) => g.id));
+    });
+
+    it('returns a page of games in deterministic title order', async () => {
+        await seedGames(db, 5);
+
+        const page = await getPaginatedGames(db, { page: 2, limit: 2 });
+
+        expect(page.map((game) => game.title)).toEqual(['Game 03', 'Game 04']);
+    });
+
+    it('clamps invalid page and limit values to the first available page', async () => {
+        await seedGames(db, 2);
+
+        const page = await getPaginatedGames(db, { page: 0, limit: 0 });
+
+        expect(page.map((game) => game.title)).toEqual(['Game 01']);
+    });
+
+    it('counts games using the same filters as the list query', async () => {
+        await seedGames(db, 3);
+
+        const category = await db
+            .select({ id: categories.id })
+            .from(categories)
+            .where(eq(categories.name, 'Strategy'))
+            .get();
+
+        expect(await getGameCount(db, { categoryIds: [category!.id] })).toBe(3);
+        expect(await getGameCount(db, { publisherId: 99999 })).toBe(0);
     });
 
     it('fetches a single game by id', async () => {

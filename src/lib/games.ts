@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import type { Database } from './db';
 import { games, categories, publishers } from '../../db/schema';
 import type { Game } from '../types/game';
@@ -31,6 +31,14 @@ export interface GameFilters {
     categoryIds?: number[];
     /** Match games published by this publisher ID. */
     publisherId?: number;
+}
+
+/** Page and filter options for paginated game-list queries. */
+export interface GamePaginationOptions extends GameFilters {
+    /** One-based page number. */
+    page: number;
+    /** Maximum number of games returned per page. */
+    limit: number;
 }
 
 function mapGame(row: GameSelectionRow): Game {
@@ -79,6 +87,47 @@ function baseGamesQuery(db: Database, filters: GameFilters = {}) {
 export async function getAllGames(db: Database, filters: GameFilters = {}): Promise<Game[]> {
     const rows = await baseGamesQuery(db, filters).orderBy(asc(games.title));
     return rows.map(mapGame);
+}
+
+/**
+ * Returns one deterministic page of games, optionally filtered by category and publisher.
+ *
+ * @param db Injectable application or in-memory database.
+ * @param options One-based page and limit together with optional game filters.
+ * @returns The games in the requested page, ordered by title.
+ */
+export async function getPaginatedGames(
+    db: Database,
+    options: GamePaginationOptions,
+): Promise<Game[]> {
+    const page = Math.max(1, Math.floor(options.page));
+    const limit = Math.max(1, Math.floor(options.limit));
+    const rows = await baseGamesQuery(db, options)
+        .orderBy(asc(games.title))
+        .limit(limit)
+        .offset((page - 1) * limit);
+    return rows.map(mapGame);
+}
+
+/**
+ * Counts games matching optional category and publisher filters.
+ *
+ * @param db Injectable application or in-memory database.
+ * @param filters Optional category and publisher constraints.
+ * @returns The number of matching games.
+ */
+export async function getGameCount(db: Database, filters: GameFilters = {}): Promise<number> {
+    const conditions = [];
+    if (filters.categoryIds && filters.categoryIds.length > 0) {
+        conditions.push(inArray(games.categoryId, filters.categoryIds));
+    }
+    if (filters.publisherId !== undefined) {
+        conditions.push(eq(games.publisherId, filters.publisherId));
+    }
+
+    const query = db.select({ count: count() }).from(games).$dynamic();
+    const row = conditions.length > 0 ? await query.where(and(...conditions)).get() : await query.get();
+    return row?.count ?? 0;
 }
 
 /**
