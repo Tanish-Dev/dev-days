@@ -39,5 +39,16 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
     },
+    rules: {
+      "comma-dangle": ["error", "always-multiline"],
+      quotes: ["error", "single", { avoidEscape: true }],
+      semi: ["error", "always"],
+    },
+  },
+  {
+    files: ["db/**/*.ts", "src/lib/**/*.ts"],
+    rules: {
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+    },
   },
 ];
