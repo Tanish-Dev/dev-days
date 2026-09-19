@@ -80,6 +80,25 @@ const publisherOptions = [...new Map(
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="games-grid">
           {games.map((game) => <GameCard game={game} />)}
           </div>
+          <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Game list pagination" data-testid="game-pagination">
+            <button
+              type="button"
+              class="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+              data-testid="pagination-previous"
+              aria-label="Previous page"
+            >
+              Previous
+            </button>
+            <span class="text-sm text-slate-300" role="status" aria-live="polite" data-testid="pagination-status"></span>
+            <button
+              type="button"
+              class="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+              data-testid="pagination-next"
+              aria-label="Next page"
+            >
+              Next
+            </button>
+          </nav>
           <div class="hidden" data-testid="filtered-empty-state">
             <EmptyState text="No games match your selected filters." />
           </div>
@@ -96,35 +115,66 @@ const publisherOptions = [...new Map(
   const resetButton = document.querySelector<HTMLButtonElement>('[data-testid="reset-filters"]');
   const resultCount = document.querySelector<HTMLElement>('[data-testid="filter-result-count"]');
   const emptyState = document.querySelector<HTMLElement>('[data-testid="filtered-empty-state"]');
+  const pagination = document.querySelector<HTMLElement>('[data-testid="game-pagination"]');
+  const previousButton = document.querySelector<HTMLButtonElement>('[data-testid="pagination-previous"]');
+  const nextButton = document.querySelector<HTMLButtonElement>('[data-testid="pagination-next"]');
+  const paginationStatus = document.querySelector<HTMLElement>('[data-testid="pagination-status"]');
+  const pageSize = 6;
+  let currentPage = 1;
 
   function updateFilters(): void {
     const selectedCategories = categoryFilters
       .filter((filter) => filter.checked)
       .map((filter) => filter.value);
     const selectedPublisher = publisherFilter?.value ?? '';
-    let visibleCount = 0;
-
-    cards.forEach((card) => {
+    const matchingCards = cards.filter((card) => {
       const categoryMatches =
         selectedCategories.length === 0 || selectedCategories.includes(card.dataset.categoryId ?? '');
       const publisherMatches =
         selectedPublisher === '' || card.dataset.publisherId === selectedPublisher;
-      const isVisible = categoryMatches && publisherMatches;
+      return categoryMatches && publisherMatches;
+    });
+    const pageCount = Math.max(1, Math.ceil(matchingCards.length / pageSize));
+    currentPage = Math.min(currentPage, pageCount);
+    const pageStart = (currentPage - 1) * pageSize;
+
+    cards.forEach((card) => {
+      const isVisible = matchingCards.indexOf(card) >= pageStart && matchingCards.indexOf(card) < pageStart + pageSize;
       card.hidden = !isVisible;
-      if (isVisible) visibleCount += 1;
     });
 
-    if (resultCount) resultCount.textContent = `Showing ${visibleCount} games`;
-    if (emptyState) emptyState.classList.toggle('hidden', visibleCount > 0);
+    if (resultCount) resultCount.textContent = `Showing ${matchingCards.length} games`;
+    if (emptyState) emptyState.classList.toggle('hidden', matchingCards.length > 0);
+    if (paginationStatus) paginationStatus.textContent = `Page ${currentPage} of ${pageCount}`;
+    if (previousButton) previousButton.disabled = currentPage === 1;
+    if (nextButton) nextButton.disabled = currentPage === pageCount;
+    if (pagination) pagination.hidden = pageCount === 1;
   }
 
-  categoryFilters.forEach((filter) => filter.addEventListener('change', updateFilters));
-  publisherFilter?.addEventListener('change', updateFilters);
+  categoryFilters.forEach((filter) => filter.addEventListener('change', () => {
+    currentPage = 1;
+    updateFilters();
+  }));
+  publisherFilter?.addEventListener('change', () => {
+    currentPage = 1;
+    updateFilters();
+  });
+  previousButton?.addEventListener('click', () => {
+    currentPage -= 1;
+    updateFilters();
+  });
+  nextButton?.addEventListener('click', () => {
+    currentPage += 1;
+    updateFilters();
+  });
   resetButton?.addEventListener('click', () => {
     categoryFilters.forEach((filter) => {
       filter.checked = false;
     });
     if (publisherFilter) publisherFilter.value = '';
+    currentPage = 1;
     updateFilters();
   });
+
+  updateFilters();
 </script>
